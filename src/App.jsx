@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { db } from "./firebaseConnection"
+import { db, auth } from "./firebaseConnection"
 import { doc, 
   setDoc, 
   collection, 
@@ -12,12 +12,25 @@ import { doc,
 } from "firebase/firestore"
 import './app.css'
 
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from 'firebase/auth'
+
 function App() {
   const [title, setTitle] = useState('')
   const [author, setAuthor] = useState('')
   const [idPost, setIdPost] = useState('')
   
   const [posts, setPosts] = useState([])
+
+  const [email, setEmail] = useState('')
+  const [pwd, setPwd] = useState('')
+
+  const [user, setUser] = useState(false)
+  const [userDetail, setUserDetail] = useState({})
 
   useEffect(() => {
     async function loadPosts(){
@@ -38,6 +51,26 @@ function App() {
     }
 
     loadPosts()
+  }, [])
+
+  useEffect( () => {
+    async function checkLogin(){
+      onAuthStateChanged(auth, (user) => {
+        if(user){
+          console.log(user)
+          setUser(true)
+          setUserDetail({
+            uid: user.uid,
+            email: user.email
+          })
+        }else{
+          setUser(false)
+          setUserDetail({})
+        }
+      })
+    }
+
+    checkLogin()
   }, [])
 
   async function handleAdd(){
@@ -77,7 +110,7 @@ function App() {
       setTitle('')
       setAuthor('')
     })
-    .catch(() => {
+    .catch((error) => {
       console.log(error)
     })
   }
@@ -88,7 +121,7 @@ function App() {
     .then(() => {
       alert("Post deleted!")
     })
-    .catch(() => {
+    .catch((error) => {
       console.log(error)
     })
   }
@@ -126,11 +159,84 @@ function App() {
 
   }
 
+  async function newUser() {
+    await createUserWithEmailAndPassword(auth, email, pwd)
+    .then(() => {
+        alert("User signed-up!")
+        setEmail("")
+        setPwd("")
+    })
+    .catch((e) => {
+      console.log(e)
+    })
+  }
+
+  async function logUser() {
+    await signInWithEmailAndPassword(auth, email, pwd)
+    .then((value) => {
+      console.log("SUCCESS")
+      console.log(value.user)
+
+      setUserDetail({
+        uid: value.user.uid,
+        email: value.user.email
+      })
+      setUser(true)
+
+      setEmail("")
+      setPwd("")
+    })
+    .catch((e) => {
+      console.log(e)
+    })
+  }
+
+  async function logOut(){
+    await signOut(auth)
+    setUser(false)
+    setUserDetail({})
+  }
+
   return (
     <div>
       <h1>ReactJS</h1>
 
+      { user && (
+        <div>
+          <strong>Welcome!</strong> <br/>
+          <span>ID: {userDetail.uid} - Email: {userDetail.email}</span><br/>
+          <button onClick={logOut}>Log-out</button>
+        </div>
+      ) }
+      
+
       <div className="container">
+        <h2>USERS</h2>
+        <label>Email</label>
+        <input 
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email..."
+        /> <br/>
+
+        <label label>Password</label>
+        <input 
+          value={pwd}
+          onChange={(e) => setPwd(e.target.value)}
+          placeholder="Password..."
+         /> <br/>
+
+         <button onClick={newUser}>Sign-up</button>
+         <button onClick={logUser}>Login</button>
+      </div>
+
+      <br/><br/>
+
+      <hr/>
+
+      <div className="container">
+        
+        <h2>POSTS</h2>
 
         <label>Post ID:</label>
         <input
